@@ -85,6 +85,10 @@ class Parser:
         """Parse the token stream into a nice dictionary data structure."""
         data = {}
 
+        while self._cur_token['type'] in (TT.ws, TT.lbreak):
+            self._skip_whitespace()
+            self._skip_newlines()
+
         while not self._finished:
             cur_token = self._cur_token
             if cur_token['type'] is TT.id:
@@ -134,6 +138,7 @@ class Parser:
 
         new_indent = indent
         while not self._finished and new_indent == indent:
+            self._skip_whitespace()
             cur_token = self._cur_token
             if cur_token['type'] is TT.id:
                 key = cur_token['value']
@@ -153,9 +158,20 @@ class Parser:
                 else:
                     raise ParseError("identifier or '-'", cur_token)
 
-            self._skip_whitespace()
-            self._skip_newlines()
-            new_indent = self._skip_whitespace()
+            if self.tokens[self._cur_position - 1]['type'] is not TT.lbreak:
+                # skip whitespace at the end of the line
+                self._skip_whitespace()
+                self._skip_newlines()
+
+            # find next indentation level without incrementing
+            new_indent = 0
+            temp_position = self._cur_position
+            while (
+                temp_position < self.num_tokens-1 and
+                self.tokens[temp_position]['type'] is TT.ws
+            ):
+                temp_position += 1
+                new_indent += 1
 
         if new_indent < indent:
             return data
