@@ -79,10 +79,10 @@ def test_fullline():
     eq_(token_values(l), ['key', ':', 'value'])
 
 def test_multiline():
-    l = list(Lexer('yes\nno'))
-    eq_(token_types(l), [TokenType.bool, TokenType.lbreak, TokenType.bool])
-    eq_(token_lines(l), [0, 0, 1])
-    eq_(token_values(l), [True, '\n', False])
+    l = list(Lexer('yes#hello\nno'))
+    eq_(token_types(l), [TokenType.bool, TokenType.comment, TokenType.lbreak, TokenType.bool])
+    eq_(token_lines(l), [0, 0, 0, 1])
+    eq_(token_values(l), [True, 'hello', '\n', False])
 
 @raises(LexError)
 def test_unknown():
