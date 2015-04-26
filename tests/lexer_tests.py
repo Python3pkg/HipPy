@@ -30,7 +30,7 @@ def test_string():
     l = list(Lexer(r'"hello \"world\""'))
     eq_(token_types(l), [TokenType.str])
     eq_(token_lines(l), [0])
-    eq_(token_values(l), [r'hello \"world\"'])
+    eq_(token_values(l), [r'hello "world"'])
 
 def test_numbers():
     l = list(Lexer('-0897'))

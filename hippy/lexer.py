@@ -3,6 +3,7 @@
 Also does stuff.
 """
 import re
+import ast
 import enum
 from . import Error
 
@@ -59,16 +60,21 @@ class Lexer:
     """
 
     _token_map = [
+        # TODO: these can probably be unified
         (
             re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"'),
             lambda val, line: {
-                'type': TokenType.str, 'value': val[1:-1], 'line': line
+                'type': TokenType.str,
+                'value': ast.literal_eval(val),
+                'line': line
             },
         ),
         (
             re.compile(r"'[^'\\]*(?:\\.[^'\\]*)*'"),
             lambda val, line: {
-                'type': TokenType.str, 'value': val[1:-1], 'line': line
+                'type': TokenType.str,
+                'value': ast.literal_eval(val),
+                'line': line
             },
         ),
         (

@@ -23,7 +23,7 @@ def test_init():
     assert p._finished is False
     assert p._data is None
 
-@skip('String are currently handled incorrectly.')
+#@skip('String are currently handled incorrectly.')
 def test_types():
     p = parser('a: -1')
     assert isinstance(p.data['a'], int)
@@ -46,7 +46,7 @@ def test_types():
     eq_(p.data['a'], r"""one 'kind' "of" string""")
 
     p = parser(r"""a: 'a different \'kind\' "of" string'""")
-    eq_(p.data['a'], r"""one 'kind' "of" string""")
+    eq_(p.data['a'], r"""a different 'kind' "of" string""")
 
 def test_key_val():
     p = parser(r"""
