@@ -161,6 +161,10 @@ def test_object_lists():
                -''')
     eq_(p.data, [{'a':2, 'b':2}, {'c':1, 't':7}])
 
+def test_singlevalue_list():
+    p = parser('a: 1,')
+    eq_(p.data['a'], [1])
+
 def test_complex_structure():
     p = parser("""bands:
 	# Some people hate them some love them

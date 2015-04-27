@@ -195,6 +195,7 @@ class Parser:
             )
 
         array = []
+        comma_exists = False
         while self._cur_token['type'] in literals:
             array.append(self._cur_token['value'])
             self._increment()
@@ -208,13 +209,21 @@ class Parser:
             ):
                 temp_position += 1
 
+                # check for single-valued list
+                if self.tokens[temp_position]['type'] is TT.comma:
+                    comma_exists = True
+
+            # check for comma at end of stream
+            if self.tokens[temp_position]['type'] is TT.comma:
+                comma_exists = True
+
             if self.tokens[temp_position]['type'] in literals:
                 self._increment(temp_position-self._cur_position)
             else:
-                # increment here?
+                self._increment()
                 break
 
-        if len(array) <= 1:
+        if len(array) == 1 and not comma_exists:
             return array[0]
         else:
             return array
