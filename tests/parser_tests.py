@@ -23,7 +23,6 @@ def test_init():
     assert p._finished is False
     assert p._data is None
 
-#@skip('String are currently handled incorrectly.')
 def test_types():
     p = parser('a: -1')
     assert isinstance(p.data['a'], int)
@@ -120,6 +119,47 @@ def test_nested_obect():
     }
 
     eq_(p.data, d)
+
+def test_only_literals():
+    p = parser('1')
+    eq_(p.data, 1)
+
+    p = parser('-4.76E-9')
+    eq_(p.data, -4.76E-9)
+
+    p = parser('yes')
+    eq_(p.data, True)
+
+    p = parser('no')
+    eq_(p.data, False)
+
+    p = parser('nil')
+    eq_(p.data, None)
+
+    p = parser(r'''"'a' \"string\""''')
+    eq_(p.data, """'a' "string\"""")
+
+def test_literal_lists():
+    p = parser('1, yes, no, 8, "5435", nil,, 766')
+    eq_(p.data, [1, True, False, 8, "5435", None, 766])
+
+    p = parser('1 2 3')
+    eq_(p.data, [1, 2, 3])
+
+    p = parser('''1
+               2
+               3''')
+    eq_(p.data, [1, 2, 3])
+
+def test_object_lists():
+    p = parser('''-
+               a: 2
+               b:2
+               --
+               c:1
+               t:7
+               -''')
+    eq_(p.data, [{'a':2, 'b':2}, {'c':1, 't':7}])
 
 def test_complex_structure():
     p = parser("""bands:

@@ -79,37 +79,15 @@ class Parser:
         while self._cur_token['type'] is TT.lbreak and not self._finished:
             self._increment()
 
-    # TODO: merge this with _parse_key, should just need to be a call to
-    #       _parse_key(0)
     def _parse(self):
         """Parse the token stream into a nice dictionary data structure."""
-        data = {}
-
         while self._cur_token['type'] in (TT.ws, TT.lbreak):
             self._skip_whitespace()
             self._skip_newlines()
 
-        while not self._finished:
-            cur_token = self._cur_token
-            if cur_token['type'] is TT.id:
-                key = cur_token['value']
-                next_token = self._nth_token()
-                if next_token['type'] is TT.colon:
-                    self._increment(2)  # move past the ':'
-                    # whitespace before a newline is not important
-                    # whitespace after a newline is important
-                    self._skip_whitespace()
-                    self._skip_newlines()
-                    data[key] = self._parse_value()
-                else:
-                    raise ParseError("':'", next_token)
-            else:
-                raise ParseError('identifier', cur_token)
+        self._data = self._parse_value()
 
-            self._skip_newlines()
-
-        self._data = data
-        return data
+        return self._data
 
     def _parse_value(self):
         """Parse the value of a key-value pair."""
@@ -118,10 +96,8 @@ class Parser:
             indent = self._skip_whitespace()
             self._skip_newlines()
 
-        if indent != 0 and self._cur_token['type'] is TT.id:
+        if self._cur_token['type'] is TT.id:
             return self._parse_key(indent)
-        elif self._cur_token['type'] is TT.id:
-            raise ParseError("literal or '-'", self._cur_token)
         elif self._cur_token['type'] is TT.hyphen:
             self._increment()
             if self._cur_token['type'] is TT.hyphen:
@@ -173,7 +149,7 @@ class Parser:
                 temp_position += 1
                 new_indent += 1
 
-        if new_indent < indent:
+        if indent == 0 or new_indent < indent:
             return data
         else:
             raise Exception(
