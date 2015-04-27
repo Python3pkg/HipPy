@@ -61,8 +61,10 @@ class Lexer:
 
     _token_map = [
         # TODO: these can probably be unified
+        # TODO: this doesn't handle arbitrarily complex strings
+        #   these would probably need to be handled in the parser
         (
-            re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"'),
+            re.compile(r'"(?:[^\\"]|\\.)*"'),
             lambda val, line: {
                 'type': TokenType.str,
                 'value': ast.literal_eval(val),
@@ -70,7 +72,7 @@ class Lexer:
             },
         ),
         (
-            re.compile(r"'[^'\\]*(?:\\.[^'\\]*)*'"),
+            re.compile(r"'(?:[^\\']|\\.)*'"),
             lambda val, line: {
                 'type': TokenType.str,
                 'value': ast.literal_eval(val),
