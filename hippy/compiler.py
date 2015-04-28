@@ -1,5 +1,4 @@
 """Compiles data structure into a Hip serialized string."""
-from . import Error
 
 
 # TODO: use StringIO here
@@ -28,7 +27,7 @@ class Compiler:
         elif isinstance(data, list):
             buffer = self._compile_list(data, indent_level)
         else:
-            buffer = repr(data)
+            buffer = self._compile_literal(data)
 
         return buffer
 
@@ -56,19 +55,28 @@ class Compiler:
     def _compile_list(self, data, indent_level):
         """Dispatch correct list compilation method."""
         if isinstance(data[0], dict):
-            buffer = self._compile_object_list(data, indent_level)
+            return self._compile_object_list(data, indent_level)
         else:
-            buffer = ', '.join(data)
-            buffer += '\n'
-
-        return buffer
+            return ', '.join(self._compile_literal(i) for i in data)
 
     def _compile_object_list(self, data, indent_level):
         """Compile a list of dicts."""
         buffer = self._indent * indent_level
         buffer += '-\n'
-        joiner = '{}--\n'.format(self._indent * indent_level)
-        buffer += joiner.join(self._compile_dict(data, indent_level))
+        jstr = '{}--\n'.format(self._indent * indent_level)
+        buffer += jstr.join(self._compile_value(d, indent_level) for d in data)
         buffer += '{}-\n'.format(self._indent * indent_level)
+
+        return buffer
+
+    def _compile_literal(self, data):
+        if data is None:
+            buffer = 'nil'
+        elif data is True:
+            buffer = 'yes'
+        elif data is False:
+            buffer = 'no'
+        else:
+            buffer = repr(data)
 
         return buffer
