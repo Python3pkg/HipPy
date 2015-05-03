@@ -5,7 +5,7 @@ Also does stuff.
 import re
 import ast
 import enum
-from . import Error
+from .error import Error
 
 
 class LexError(Error):

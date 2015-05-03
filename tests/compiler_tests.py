@@ -33,6 +33,5 @@ def test_object_lists():
 a: 1
 --
 b: 2
--
-'''
+-'''
     eq_(hipile(a), b)

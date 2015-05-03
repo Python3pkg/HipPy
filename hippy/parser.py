@@ -1,5 +1,5 @@
 """Contains Parser class responsible for parsing string into data structure."""
-from . import Error
+from .error import Error
 from .lexer import TokenType as TT
 
 
@@ -55,7 +55,7 @@ class Parser:
         try:
             return self.tokens[self._cur_position + n]
         except IndexError:
-            return None
+            return {'value': None, 'type': None, 'line': -1}
 
     def _increment(self, n=1):
         """Move forward n tokens in the stream."""
