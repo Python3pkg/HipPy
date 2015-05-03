@@ -2,6 +2,9 @@
 HipPy
 =====
 
+.. image:: https://travis-ci.org/Sean1708/HipPy.svg?branch=master
+    :target: https://travis-ci.org/Sean1708/HipPy
+
 A Python parser for the `Hip`_ data serialization format.
 
 .. _`Hip`: https://github.com/mario-deluna/Hip
