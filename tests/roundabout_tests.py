@@ -25,7 +25,6 @@ def test_strings():
     assert roundabout('a\tdifferent\nstring')
     assert roundabout(r'"so" \'many\'\nstringy\tthings')
 
-@skip("Nested lists are not yet supported.")
 def test_literal_lists():
     assert roundabout([1, 2, 4.3, 555, "hi", True, None, False, 'yo'])
     assert roundabout([1, [2, 2, [3, 3, 3], 2, 2], 1])
