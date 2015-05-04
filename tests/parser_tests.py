@@ -64,20 +64,6 @@ g: 'a different "string"'
         'f': "a 'string'", 'g': 'a different "string"',
     })
 
-def test_literal_list():
-    p = parser("a: 1, 2, 3")
-    eq_(p.data['a'], [1, 2, 3])
-
-    p = parser("a: 1.1 2.2 3.3")
-    eq_(p.data['a'], [1.1, 2.2, 3.3])
-
-    p = parser(r"""a:
-               "one"
-               "two"
-               "three"
-               """)
-    eq_(p.data['a'], ["one", "two", "three"])
-
 def test_object_list():
     p = parser("""a:
                -
@@ -139,17 +125,71 @@ def test_only_literals():
     p = parser(r'''"'a' \"string\""''')
     eq_(p.data, """'a' "string\"""")
 
-def test_literal_lists():
-    p = parser('1, yes, no, 8, "5435", nil,, 766')
+def test_comma_lists():
+    p = parser('1, yes, no, 8, "5435", nil, 766')
     eq_(p.data, [1, True, False, 8, "5435", None, 766])
 
-    p = parser('1 2 3')
+    p = parser('1, 2, 3')
     eq_(p.data, [1, 2, 3])
 
+    p = parser("a: 1, 2, 3")
+    eq_(p.data['a'], [1, 2, 3])
+
+    p = parser("a: 1.1, 2.2, 3.3")
+    eq_(p.data['a'], [1.1, 2.2, 3.3])
+
+def test_newline_lists():
     p = parser('''1
-               2
-               3''')
+2
+3''')
     eq_(p.data, [1, 2, 3])
+
+    p = parser(r"""a:
+"one"
+"two"
+"three"
+               """)
+    eq_(p.data['a'], ["one", "two", "three"])
+
+    p = parser(r"""a:
+"one"
+2
+3.3""")
+    eq_(p.data['a'], ["one", 2, 3.3])
+
+def test_nested_lists():
+    p = parser(r"""1
+2
+3
+    4
+    5
+6""")
+    eq_(p.data, [1, 2, 3, [4, 5], 6])
+
+    p = parser(r"""a:
+    1
+    2
+        3
+        4
+    5""")
+    eq_(p.data['a'], [1, 2, [3, 4], 5])
+
+    p = parser(r"""a:
+    1
+    2, 3, 4
+    5""")
+    eq_(p.data['a'], [1, [2, 3, 4], 5])
+
+@skip("this is how I want it to behave")
+def test_badly_behaved_lists():
+    p = parser("""1,2
+3,4""")
+    eq_(p.data, [[1, 2], [3, 4]])
+
+    p = parser("""a:
+               1, 2
+               3""")
+    eq_(p.data['a'], [[1, 2], 3])
 
 def test_object_lists():
     p = parser('''-
