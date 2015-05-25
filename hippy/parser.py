@@ -24,6 +24,16 @@ class Parser:
 
     """Parses an iterable of tokens into a data structure."""
 
+    #       .==.        .==.
+    #      //`^\\      //^`\\
+    #     // ^ ^\(\__/)/^ ^^\\
+    #    //^ ^^ ^/6  6\ ^^ ^ \\
+    #   //^ ^^ ^/( .. )\^ ^ ^ \\
+    #  // ^^ ^/\| v""v |/\^ ^ ^\\
+    # // ^^/\/ /  `~~`  \ \/\^ ^\\
+    # -----------------------------
+    # HERE BE DRAGONS
+
     def __init__(self, tokens):
         """Initialize tokens excluding comments."""
         self.tokens = [t for t in tokens if t['type'] is not TT.comment]
@@ -285,7 +295,12 @@ class Parser:
                 if self.tokens[temp_position]['type'] is TT.comma:
                     array.append(self._parse_comma_list())
                 else:
-                    array.append(self._cur_token['value'])
+                    if self._cur_token['type'] is not TT.hyphen:
+                        array.append(self._cur_token['value'])
+                    elif self._nth_token()['type'] is TT.hyphen:
+                        # two consecutive '-'s
+                        array.append([])
+                        self._increment()
                     self._increment()
             else:  # new_indent > indent
                 while self._cur_token['type'] is TT.lbreak:
@@ -294,7 +309,10 @@ class Parser:
                 array.append(self._parse_newline_list(new_indent))
 
             self._skip_whitespace()
-            if not self._finished and self._cur_token['type'] is not TT.lbreak:
+            if (
+                not self._finished and
+                self._cur_token['type'] not in (TT.lbreak, TT.hyphen)
+            ):
                 raise ParseError('newline', self._cur_token)
 
             temp_position = self._cur_position

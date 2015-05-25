@@ -41,9 +41,14 @@ class Compiler:
 
     def _compile_list(self, data, indent_level):
         """Correctly write possibly nested list."""
-        if not any(isinstance(i, (dict, list)) for i in data):
+        if len(data) == 0:
+            return '--'
+        elif not any(isinstance(i, (dict, list)) for i in data):
             return ', '.join(self._compile_literal(value) for value in data)
         else:
+            # 'ere be dragons,
+            # granted there are fewer dragons than the parser,
+            # but dragons nonetheless
             buffer = ''
             i = 0
             while i < len(data):
