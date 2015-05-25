@@ -180,6 +180,24 @@ def test_nested_lists():
     5""")
     eq_(p.data['a'], [1, [2, 3, 4], 5])
 
+@skip("Don't yet work properly.")
+def test_empty_lists():
+    p = parser("--")
+    eq_(p.data, [])
+
+    p = parser("1\n--\n3")
+    eq_(p.data, [1, [], 3])
+
+    p = parser("a: --")
+    eq_(p.data['a'], [])
+
+    p = parser(r"""a:
+               1
+               2,3
+               --
+               'hello'""")
+    eq_(p.data['a'], [1, [2,3], [], "hello"])
+
 @skip("this is how I want it to behave")
 def test_badly_behaved_lists():
     p = parser("""1,2

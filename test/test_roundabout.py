@@ -38,6 +38,11 @@ def test_object_lists():
     assert roundabout([{'a':1},{'b':2}])
     assert roundabout([{'a':[1,2,3],'b':None,'c':{'a':1}},{'a':1,'y':5}])
 
+@skip("Don't yet work properly.")
+def test_empty_lists():
+    assert roundabout([])
+    assert roundabout([1, [], 3])
+
 def test_complex_structure():
     d = {
         'bands': [
