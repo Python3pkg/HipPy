@@ -2,13 +2,16 @@ from nose.tools import *
 from hippy.lexer import *
 
 def token_types(tokens):
-    return [token['type'] for token in tokens]
+    return [token.type for token in tokens]
 
 def token_lines(tokens):
-    return [token['line'] for token in tokens]
+    return [token.line for token in tokens]
 
 def token_values(tokens):
-    return [token['value'] for token in tokens]
+    return [token.value for token in tokens]
+
+def token_indents(tokens):
+    return [token.indent for token in tokens]
 
 def test_init():
     l = Lexer('hello')
@@ -77,12 +80,21 @@ def test_fullline():
     eq_(token_types(l), [TokenType.id, TokenType.colon, TokenType.str])
     eq_(token_lines(l), [0, 0, 0])
     eq_(token_values(l), ['key', ':', 'value'])
+    eq_(token_indents(l), [0, 0, 0])
 
 def test_multiline():
     l = list(Lexer('yes#hello\nno'))
-    eq_(token_types(l), [TokenType.bool, TokenType.comment, TokenType.lbreak, TokenType.bool])
-    eq_(token_lines(l), [0, 0, 0, 1])
-    eq_(token_values(l), [True, 'hello', '\n', False])
+    eq_(token_types(l), [TokenType.bool, TokenType.bool])
+    eq_(token_lines(l), [0, 1])
+    eq_(token_values(l), [True, False])
+    eq_(token_indents(l), [0, 0])
+
+def test_indents():
+    l = list(Lexer('key1:\n  1\n  2\nkey2:3'))
+    eq_(token_types(l), [TokenType.id, TokenType.int, TokenType.int, TokenType.id, TokenType.colon, TokenType.int])
+    eq_(token_lines(l), [0, 1, 2, 3, 3, 3])
+    eq_(token_values(l), ['key1', ':', 1, 2, 'key2', ':', 3])
+    eq_(token_indents(l), [0, 2, 2, 0, 0, 0])
 
 @raises(LexError)
 def test_unknown():

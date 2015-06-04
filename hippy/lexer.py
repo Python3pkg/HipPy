@@ -5,6 +5,7 @@ Also does stuff.
 import re
 import ast
 import enum
+from collections import namedtuple
 from .error import Error
 
 
@@ -32,7 +33,7 @@ class TokenType(enum.Enum):
     bool = 4
     null = 5
     comment = 6
-    lbreak = 7
+    indent = 7
     ws = 8
     hyphen = 9
     colon = 10
@@ -40,7 +41,10 @@ class TokenType(enum.Enum):
     id = 12
 
 
-def tokenize_number(val, line):
+Token = namedtuple('Token', ['type', 'value', 'indent', 'line'])
+
+
+def tokenize_number(val, indent, line):
     """Parse val correctly into int or float."""
     try:
         num = int(val)
@@ -49,7 +53,7 @@ def tokenize_number(val, line):
         num = float(val)
         typ = TokenType.float
 
-    return {'type': typ, 'value': num, 'line': line}
+    return Token(typ, num, indent, line)
 
 
 class Lexer:
@@ -65,19 +69,15 @@ class Lexer:
         #   these would probably need to be handled in the parser
         (
             re.compile(r'"(?:[^\\"]|\\.)*"'),
-            lambda val, line: {
-                'type': TokenType.str,
-                'value': ast.literal_eval(val),
-                'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.str, ast.literal_eval(val), indent, line,
+            ),
         ),
         (
             re.compile(r"'(?:[^\\']|\\.)*'"),
-            lambda val, line: {
-                'type': TokenType.str,
-                'value': ast.literal_eval(val),
-                'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.str, ast.literal_eval(val), indent, line,
+            ),
         ),
         (
             re.compile(
@@ -91,69 +91,67 @@ class Lexer:
                 """,
                 re.VERBOSE,
             ),
-            tokenize_number
+            tokenize_number,
         ),
         (
             re.compile(r'yes'),
-            lambda val, line: {
-                'type': TokenType.bool, 'value': True, 'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.bool, True, indent, line,
+            ),
         ),
         (
             re.compile(r'no'),
-            lambda val, line: {
-                'type': TokenType.bool, 'value': False, 'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.bool, False, indent, line,
+            ),
         ),
         (
             re.compile(r'nil'),
-            lambda val, line: {
-                'type': TokenType.null, 'value': None, 'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.null, None, indent, line,
+            ),
         ),
         (
             re.compile(r'#.*'),
-            lambda val, line: {
-                'type': TokenType.comment,
-                'value': val[1:].strip(),
-                'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.comment, val[1:].strip(), indent, line,
+            ),
         ),
         (
-            re.compile(r'(?:\r\n|\r|\n)'),
-            lambda val, line: {
-                'type': TokenType.lbreak, 'value': val, 'line': line
-            },
+            re.compile(r'(?:\r\n|\r|\n)(\s*)'),
+            lambda val, indent, line: Token(
+                TokenType.indent, val, indent, line,
+            ),
         ),
         (
-            re.compile(r'\s'),
-            lambda val, line: {
-                'type': TokenType.ws, 'value': val, 'line': line
-            },
+            re.compile(r'\s+'),
+            lambda val, indent, line: Token(
+                TokenType.ws, val, indent, line,
+            ),
         ),
         (
             re.compile(r'-'),
-            lambda val, line: {
-                'type': TokenType.hyphen, 'value': val, 'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.hyphen, val, indent, line,
+            ),
         ),
         (
             re.compile(r':'),
-            lambda val, line: {
-                'type': TokenType.colon, 'value': val, 'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.colon, val, indent, line,
+            ),
         ),
         (
             re.compile(r','),
-            lambda val, line: {
-                'type': TokenType.comma, 'value': val, 'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.comma, val, ident, line,
+            ),
         ),
         (
             re.compile(r'\w+'),
-            lambda val, line: {
-                'type': TokenType.id, 'value': val, 'line': line
-            },
+            lambda val, indent, line: Token(
+                TokenType.id, val, indent, line,
+            ),
         ),
     ]
 
@@ -163,6 +161,7 @@ class Lexer:
         self._length = len(self._content)
         self._pos = 0
         self._line = 0
+        self._indent = 0
 
     def __iter__(self):
         """Return the object, since it is an iterator."""
@@ -170,18 +169,27 @@ class Lexer:
 
     def __next__(self):
         """Retrieve the token at position pos."""
-        if self._pos >= self._length:
-            raise StopIteration
+        TT = TokenType
+        while True:
+            if self._pos >= self._length:
+                raise StopIteration
 
-        remaining = self._content[self._pos:]
+            token = self._find_token(self._content[self._pos:])
+
+            if token.type not in (TT.comment, TT.indent, TT.ws):
+                return token
+
+    def _find_token(self, remaining):
         for (rgx, func) in self._token_map:
             match = rgx.match(remaining)
             if match is not None:
-                token = func(match.group(0), self._line)
-                if token['type'] is TokenType.lbreak:
-                    self._line += 1
-
+                token = func(match.group(0), self._indent, self._line)
                 self._pos += match.end(0)
+
+                if token.type is TokenType.indent:
+                    self._line += 1
+                    self._indent = len(match.group(1))
+
                 return token
 
         raise LexError(self._line, self._content[self._pos])
