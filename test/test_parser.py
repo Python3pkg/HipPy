@@ -18,9 +18,8 @@ def parser(data):
 def test_init():
     p = parser('a: 1')
 
-    eq_(p.num_tokens, 4)
-    eq_(p._cur_position, 0)
-    assert p._finished is False
+    eq_(p._num_tokens, 3)
+    eq_(p._cur_pos, 0)
     assert p._data is None
 
 def test_types():
@@ -210,7 +209,8 @@ def test_badly_behaved_lists():
     eq_(p.data['a'], [[1, 2], 3])
 
 def test_object_lists():
-    p = parser('''-
+    p = parser('''
+               -
                a: 2
                b:2
                --

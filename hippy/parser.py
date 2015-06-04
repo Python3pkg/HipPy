@@ -1,6 +1,7 @@
 """Contains Parser class responsible for parsing string into data structure."""
 from .error import Error
 from .lexer import TokenType as TT
+from .lexer import Token
 
 
 class ParseError(Error):
@@ -10,8 +11,8 @@ class ParseError(Error):
     def __init__(self, expected, found):
         """Set expected and found values."""
         self.expected = expected
-        self.found = found['value']
-        self.line = found['line']
+        self.found = found.value
+        self.line = found.line
 
     def __str__(self):
         """Give a nice predetermined error message."""
@@ -25,21 +26,20 @@ class Parser:
     """Parses an iterable of tokens into a data structure."""
 
     #       .==.        .==.
-    #      //`^\\      //^`\\
+    #      //'^\\      //^'\\
     #     // ^ ^\(\__/)/^ ^^\\
     #    //^ ^^ ^/6  6\ ^^ ^ \\
     #   //^ ^^ ^/( .. )\^ ^ ^ \\
     #  // ^^ ^/\| v""v |/\^ ^ ^\\
-    # // ^^/\/ /  `~~`  \ \/\^ ^\\
+    # // ^^/\/ /  '~~'  \ \/\^ ^\\
     # -----------------------------
-    # HERE BE DRAGONS
 
     def __init__(self, tokens):
         """Initialize tokens excluding comments."""
-        self.tokens = [t for t in tokens if t['type'] is not TT.comment]
-        self.num_tokens = len(self.tokens)
-        self._cur_position = 0
-        self._finished = False
+        self.tokens = list(tokens)
+        self._num_tokens = len(self.tokens)
+        self._cur_pos = 0
+
         self._data = None
         self._literals = (TT.str, TT.int, TT.float, TT.bool, TT.null)
 
@@ -53,278 +53,162 @@ class Parser:
         else:
             return self._data
 
+    def _finished(self, pos=0):
+        if self._cur_pos < 0:
+            return True
+        else:
+            return self._cur_pos + pos >= self._num_tokens
+
+    def _nth_token(self, n=0):
+        """Return the token n tokens ahead in the stream."""
+        if self._finished(n):
+            return Token(None, None, -1, -1)
+        else:
+            return self.tokens[self._cur_pos + n]
+
     @property
     def _cur_token(self):
-        """Return the current token."""
-        if self._finished:
-            return {'value': None, 'type': None, 'line': -1}
-        else:
-            return self.tokens[self._cur_position]
+        """Return the token at current position."""
+        return self._nth_token()
 
-    def _nth_token(self, n=1):
-        """Return token n tokens ahead of the current token."""
-        try:
-            return self.tokens[self._cur_position + n]
-        except IndexError:
-            return {'value': None, 'type': None, 'line': -1}
+    @property
+    def _next_token(self):
+        """Return the token in the next position."""
+        return self._nth_token(1)
 
     def _increment(self, n=1):
-        """Move forward n tokens in the stream."""
-        if self._cur_position >= self.num_tokens-1:
-            self._cur_positon = self.num_tokens - 1
-            self._finished = True
+        """Increment to next token in the stream if it exists."""
+        if self._finished(n):
+            self._cur_pos = self._num_tokens
         else:
-            self._cur_position += n
-
-    def _skip_whitespace(self):
-        """Increment over whitespace, counting characters."""
-        i = 0
-        while self._cur_token['type'] is TT.ws and not self._finished:
-            self._increment()
-            i += 1
-
-        return i
-
-    def _skip_newlines(self):
-        """Increment over newlines."""
-        while self._cur_token['type'] is TT.lbreak and not self._finished:
-            self._increment()
+            self._cur_pos += n
 
     def _parse(self):
-        """Parse the token stream into a nice dictionary data structure."""
-        while self._cur_token['type'] in (TT.ws, TT.lbreak):
-            self._skip_whitespace()
-            self._skip_newlines()
-
+        """Parse the tokens into a data structure."""
         self._data = self._parse_value()
-
         return self._data
 
     def _parse_value(self):
-        """Parse the value of a key-value pair."""
-        indent = 0
-        while self._cur_token['type'] is TT.ws:
-            indent = self._skip_whitespace()
-            self._skip_newlines()
-
-        if self._cur_token['type'] is TT.id:
-            return self._parse_key(indent)
-        elif self._cur_token['type'] is TT.hyphen:
-            self._increment()
-            if self._cur_token['type'] is TT.hyphen:
-                self._increment()
+        """Parse any value (literal or id)."""
+        if self._cur_token.type is TT.id:
+            return self._parse_key_val()
+        elif self._cur_token.type is TT.hyphen:
+            if self._next_token.type is TT.hyphen:
+                self._increment(2)
                 return []
             else:
                 return self._parse_object_list()
+        elif self._cur_token.type is TT.comma:
+            return []
         else:
-            # TODO: single comma gives empty list
-            return self._parse_literal_list(indent)
+            return self._parse_literal_list()
 
-    def _parse_key(self, indent):
+    def _parse_key_val(self):
         """Parse a series of key-value pairs."""
         data = {}
+        start_indent = self._cur_token.indent
 
-        new_indent = indent
-        while not self._finished and new_indent == indent:
-            self._skip_whitespace()
-            cur_token = self._cur_token
-            if cur_token['type'] is TT.id:
-                key = cur_token['value']
-                next_token = self._nth_token()
-                if next_token['type'] is TT.colon:
-                    self._increment(2)  # move past the ':'
-                    # whitespace before a newline is not important
-                    # whitespace after a newline is important
-                    self._skip_whitespace()
-                    self._skip_newlines()
-                    data[key] = self._parse_value()
-                else:
-                    raise ParseError("':'", next_token)
+        while not self._finished() and self._cur_token.indent == start_indent:
+            if self._cur_token.type is TT.hyphen:
+                return data
+            elif self._cur_token.type is not TT.id:
+                raise ParseError('identifier', self._cur_token)
+
+            key = self._cur_token.value
+            self._increment()
+
+            if self._cur_token.type is TT.colon:
+                self._increment()
             else:
-                if cur_token['type'] is TT.hyphen:
-                    return data
-                else:
-                    raise ParseError("identifier or '-'", cur_token)
+                raise ParseError("':'", self._cur_token)
 
-            if self.tokens[self._cur_position - 1]['type'] is not TT.lbreak:
-                # skip whitespace at the end of the line
-                self._skip_whitespace()
-                self._skip_newlines()
+            data[key] = self._parse_value()
 
-            # find next indentation level without incrementing
-            new_indent = 0
-            temp_position = self._cur_position
-            while (
-                temp_position < self.num_tokens-1 and
-                self.tokens[temp_position]['type'] is TT.ws
-            ):
-                temp_position += 1
-                new_indent += 1
-
-        if indent == 0 or new_indent < indent:
-            return data
-        else:
+        if self._cur_token.indent > start_indent:
             raise Exception(
-                "Parser screwed up, increase of indent on line {} should "
-                "have been caught by _parse_value().".format(
-                    cur_token['line']
+                "Parser did not catch indent increase on line {}.".format(
+                    self._cur_token.line,
                 )
             )
+        else:
+            return data
 
     def _parse_object_list(self):
-        """Parse a list of data structures."""
-        array = []
+        """Parse a list of dictionaries."""
+        if self._cur_token.type is not TT.hyphen:
+            raise ParseError("'-'", self._cur_token)
 
-        indent = 0
-        while not self._finished:
-            self._skip_newlines()
-            if self._cur_token['type'] is TT.ws:
-                while self._cur_token['type'] is TT.ws:
-                    indent = self._skip_whitespace()
-                    self._skip_newlines()
-            elif self._cur_token['type'] is TT.id:
-                array.append(self._parse_key(indent))
-            elif self._cur_token['type'] is TT.hyphen:
-                self._increment()
-                if self._cur_token['type'] is not TT.hyphen or self._finished:
-                    return array
-                else:
-                    self._increment()
+        data = []
+        start_indent = self._cur_token.indent
+
+        while (
+            not self._finished() and
+            self._cur_token.type is TT.hyphen and
+            self._cur_token.indent == start_indent
+        ):
+            self._increment()
+            data.append(self._parse_key_val())
+
+            if self._cur_token.type is not TT.hyphen:
+                raise ParseError("'-'", self._cur_token)
             else:
-                raise ParseError('something different', self._cur_token)
+                self._increment()
 
-    def _parse_literal_list(self, indent):
-        """Parse a list of literals."""
-        if self._cur_token['type'] not in self._literals:
+        return data
+
+    def _parse_literal_list(self):
+        """Parse a comma or newline seperated list of literals."""
+        if self._cur_token.type not in self._literals:
             raise Exception(
-                "Parser failed, _parse_literal_list was called on non-literal"
-                " {} on line {}.".format(
-                    repr(self._cur_token['value']), self._cur_token['line']
+                "Parser tried to parse non-literal {} as literal.".format(
+                    self._cur_token.value,
                 )
             )
 
-        # find next token after whitespace without incrementing
-        temp_position = self._cur_position
-        while (
-            temp_position < self.num_tokens-1 and (
-                self.tokens[temp_position]['type'] is TT.ws or
-                self.tokens[temp_position]['type'] in self._literals
-            )
-        ):
-            temp_position += 1
-        next_token = self.tokens[temp_position]
-
-        # end of stream
-        if next_token['type'] is TT.ws:
-            return self._cur_token['value']
-        elif next_token['type'] is TT.comma:
+        if self._next_token.type is TT.comma:
             return self._parse_comma_list()
-        elif next_token['type'] is TT.lbreak:
-            while (
-                temp_position < self.num_tokens-1 and
-                self.tokens[temp_position]['type'] in (TT.lbreak, TT.ws)
-            ):
-                temp_position += 1
-            if self.tokens[temp_position]['type'] in self._literals:
-                return self._parse_newline_list(indent)
-            else:
-                rval = self._cur_token['value']
-                self._increment()
-                return rval
+        elif (
+            self._next_token.type in self._literals and
+            self._cur_token.indent <= self._next_token.indent
+        ):
+            return self._parse_newline_list()
         else:
-            rval = self._cur_token['value']
+            rval = self._cur_token.value
             self._increment()
             return rval
 
     def _parse_comma_list(self):
-        """Parse a comma seperated list."""
-        if self._cur_token['type'] not in self._literals:
-            raise Exception(
-                "Parser failed, _parse_comma_list was called on non-literal"
-                " {} on line {}.".format(
-                    repr(self._cur_token['value']), self._cur_token['line']
-                )
-            )
+        """Parse a comma seperated list of literals."""
+        data = []
 
-        array = []
-        while self._cur_token['type'] in self._literals and not self._finished:
-            array.append(self._cur_token['value'])
+        while not self._finished():
+            data.append(self._cur_token.value)
             self._increment()
-            self._skip_whitespace()
-            if self._cur_token['type'] is TT.comma:
+            if self._cur_token.type is TT.comma:
                 self._increment()
-                self._skip_whitespace()
-            elif (
-                not self._finished and
-                self._cur_token['type'] not in (TT.ws, TT.lbreak)
-            ):
-                raise ParseError('comma or newline', self._cur_token)
-
-        return array
-
-    def _parse_newline_list(self, indent):
-        """Parse a newline seperated list."""
-        if self._cur_token['type'] not in self._literals:
-            raise Exception(
-                "Parser failed, _parse_newline_list was called on non-literal"
-                " {} on line {}.".format(
-                    repr(self._cur_token['value']), self._cur_token['line']
-                )
-            )
-
-        array = []
-        new_indent = indent
-        while not self._finished:
-            if new_indent < indent:
+            else:
                 break
-            elif new_indent == indent:
-                while self._cur_token['type'] is TT.lbreak:
-                    self._skip_newlines()
-                    self._skip_whitespace()
-                # look ahead to see if it's a comma seperated list
-                temp_position = self._cur_position
-                while (
-                    temp_position < self.num_tokens-1 and
-                    (
-                        self.tokens[temp_position]['type'] is TT.ws or
-                        self.tokens[temp_position]['type'] in self._literals
-                    )
-                ):
-                    temp_position += 1
 
-                if self.tokens[temp_position]['type'] is TT.comma:
-                    array.append(self._parse_comma_list())
-                else:
-                    if self._cur_token['type'] is not TT.hyphen:
-                        array.append(self._cur_token['value'])
-                    elif self._nth_token()['type'] is TT.hyphen:
-                        # two consecutive '-'s
-                        array.append([])
-                        self._increment()
-                    self._increment()
-            else:  # new_indent > indent
-                while self._cur_token['type'] is TT.lbreak:
-                    self._skip_newlines()
-                    self._skip_whitespace()
-                array.append(self._parse_newline_list(new_indent))
+        return data
 
-            self._skip_whitespace()
-            if (
-                not self._finished and
-                self._cur_token['type'] not in (TT.lbreak, TT.hyphen)
-            ):
-                raise ParseError('newline', self._cur_token)
+    def _parse_newline_list(self):
+        """Parse a (possibly nested) newline seperated list of literals."""
+        data = []
+        start_indent = self._cur_token.indent
 
-            temp_position = self._cur_position
-            new_indent = 0
-            while (
-                temp_position < self.num_tokens-1 and
-                self.tokens[temp_position]['type'] in (TT.lbreak, TT.ws)
-            ):
-                if self.tokens[temp_position]['type'] is TT.lbreak:
-                    new_indent = 0
-                else:
-                    new_indent += 1
-                temp_position += 1
+        while (
+            not self._finished() and
+            self._cur_token.type in self._literals and
+            start_indent <= self._cur_token.indent
+        ):
+            # nested newline list
+            if self._cur_token.indent > start_indent:
+                data.append(self._parse_newline_list())
+            # nested comma list
+            elif self._next_token.type is TT.comma:
+                data.append(self._parse_comma_list())
+            else:
+                data.append(self._cur_token.value)
+                self._increment()
 
-        return array
+        return data

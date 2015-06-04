@@ -91,10 +91,14 @@ def test_multiline():
 
 def test_indents():
     l = list(Lexer('key1:\n  1\n  2\nkey2:3'))
-    eq_(token_types(l), [TokenType.id, TokenType.int, TokenType.int, TokenType.id, TokenType.colon, TokenType.int])
-    eq_(token_lines(l), [0, 1, 2, 3, 3, 3])
+    eq_(token_types(l), [TokenType.id, TokenType.colon, TokenType.int, TokenType.int, TokenType.id, TokenType.colon, TokenType.int])
+    eq_(token_lines(l), [0, 0, 1, 2, 3, 3, 3])
     eq_(token_values(l), ['key1', ':', 1, 2, 'key2', ':', 3])
-    eq_(token_indents(l), [0, 2, 2, 0, 0, 0])
+    eq_(token_indents(l), [0, 0, 2, 2, 0, 0, 0])
+
+    l = list(Lexer('key1:\n  key2:1\n  key3:2\nkey4:3'))
+    eq_(token_indents(l), [0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0])
+
 
 @raises(LexError)
 def test_unknown():

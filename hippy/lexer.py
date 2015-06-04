@@ -144,7 +144,7 @@ class Lexer:
         (
             re.compile(r','),
             lambda val, indent, line: Token(
-                TokenType.comma, val, ident, line,
+                TokenType.comma, val, indent, line,
             ),
         ),
         (
@@ -157,7 +157,7 @@ class Lexer:
 
     def __init__(self, content):
         """Initialize lexer state."""
-        self._content = content.replace('\t', ' ').strip()
+        self._content = content.replace('\t', ' ')
         self._length = len(self._content)
         self._pos = 0
         self._line = 0
