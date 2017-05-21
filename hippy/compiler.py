@@ -82,7 +82,7 @@ class Compiler:
     def _compile_key_val(self, data, indent_level):
         """Compile a dictionary."""
         buffer = ''
-        for (key, val) in data.items():
+        for (key, val) in list(data.items()):
             buffer += self._indent * indent_level
             # TODO: assumes key is a string
             buffer += key + ':'
